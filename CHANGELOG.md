@@ -7,6 +7,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [Unreleased]
 
 ### Added
+- `agentbench redact <trace>` subcommand that strips sensitive content from a
+  recorded trace before sharing it (bug report, blog post, public regression
+  test). Default rules redact email addresses, OpenAI/Slack/GitHub/npm
+  API-key prefixes, `Bearer` tokens, and JWT-shaped strings inside any
+  string value; whole field values are replaced for keys named `email`,
+  `phone`, `ssn`, `password`, `token`, `secret`, `apiKey`, `api_key`,
+  `authorization`, `auth`. UUIDs are intentionally preserved (they're often
+  legitimate test data). `--rules <path>` extends the defaults with a JSON
+  `{ patterns?, piiKeys? }` file; `--dry-run` reports counts without
+  writing; `--json` emits machine-readable output. Redacted file is
+  re-validated against `TraceSchema` before write, so the output is always
+  a valid trace. Atomic write (tmp + rename). Programmatic API exported via
+  `redactTrace` / `loadRulesFile` / `formatRedact` / `formatRedactJson`.
+  Regex-based PII detection is best-effort; the documented defaults catch
+  common foot-guns but offer no guarantee of completeness.
 - `agentbench bless <recording>` subcommand that promotes a recording to be
   the new baseline — closes the `compare`-shows-red-now-what loop. Validates
   the recording before promoting (never bless a broken file), refuses to

@@ -47,3 +47,18 @@ export {
   type BlessOptions,
   type BlessResult,
 } from "./bless.js";
+export {
+  redactTrace,
+  loadRulesFile,
+  formatRedact,
+  formatRedactJson,
+  validateRedactedFile,
+  DEFAULT_PATTERNS,
+  DEFAULT_PII_KEYS,
+  NotATraceError,
+  type RedactOptions,
+  type RedactResult,
+  type RedactCounts,
+  type RedactRules,
+  type RedactPattern,
+} from "./redact.js";
