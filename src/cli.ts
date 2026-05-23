@@ -3,6 +3,7 @@
  *
  *   agentbench compare <baseline> <current>   diff two trace files
  *   agentbench init [name]                    scaffold a bench directory
+ *   agentbench list [dir]                     list baselines + recordings in a bench
  *
  * Exits 0 on success, 1 on failure. Designed to drop straight into CI.
  */
@@ -12,6 +13,7 @@ import { cac } from "cac";
 import kleur from "kleur";
 import { compareTraces, formatReport } from "./compare.js";
 import { initBench } from "./init.js";
+import { formatList, formatListJson, listBench } from "./list.js";
 import { parseTrace } from "./trace.js";
 
 const VERSION = "0.0.1";
@@ -54,6 +56,25 @@ cli
       process.stdout.write(`${kleur.green("✓")} scaffolded bench at ${rel}\n`);
       for (const file of result.filesWritten) {
         process.stdout.write(`  · ${path.relative(process.cwd(), file)}\n`);
+      }
+      process.exit(0);
+    } catch (err) {
+      process.stderr.write(`${kleur.red("error:")} ${(err as Error).message}\n`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("list [dir]", "List baselines + recordings in a bench")
+  .option("--json", "Emit machine-readable JSON instead of a table")
+  .action(async (dir: string | undefined, opts: { json?: boolean }) => {
+    try {
+      const target = dir ?? "./agentbench-tests";
+      const result = await listBench(target);
+      if (opts.json) {
+        process.stdout.write(formatListJson(result));
+      } else {
+        process.stdout.write(`${formatList(result)}\n`);
       }
       process.exit(0);
     } catch (err) {
