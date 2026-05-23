@@ -6,6 +6,7 @@
  *   agentbench list [dir]                     list baselines + recordings in a bench
  *   agentbench validate <path>                schema-check a trace file or dir
  *   agentbench bless <recording>              promote a recording to a baseline
+ *   agentbench redact <trace>                 strip sensitive fields from a trace
  *
  * Exits 0 on success, 1 on failure. Designed to drop straight into CI.
  */
@@ -17,6 +18,7 @@ import { blessRecording } from "./bless.js";
 import { compareTraces, formatReport } from "./compare.js";
 import { initBench } from "./init.js";
 import { formatList, formatListJson, listBench } from "./list.js";
+import { formatRedact, formatRedactJson, loadRulesFile, redactTrace } from "./redact.js";
 import { parseTrace } from "./trace.js";
 import { formatValidate, formatValidateJson, validateAgentbenchFile } from "./validate.js";
 
@@ -132,6 +134,39 @@ cli
           process.stdout.write(`${kleur.yellow("dry-run")} would bless ${recRel} → ${baseRel}\n`);
         } else {
           process.stdout.write(`${kleur.green("✓")} blessed ${recRel} → ${baseRel}\n`);
+        }
+        process.exit(0);
+      } catch (err) {
+        process.stderr.write(`${kleur.red("error:")} ${(err as Error).message}\n`);
+        process.exit(1);
+      }
+    },
+  );
+
+cli
+  .command("redact <trace>", "Strip sensitive fields from a recorded trace before sharing")
+  .option("--out <path>", "Where to write the redacted file (default: <basename>.redacted.<ext>)")
+  .option("--rules <path>", "JSON file with extra { patterns?, piiKeys? } layered on the defaults")
+  .option("--dry-run", "Report what would be redacted without writing anything")
+  .option("--json", "Emit machine-readable JSON instead of a human-friendly report")
+  .action(
+    async (
+      tracePath: string,
+      opts: { out?: string; rules?: string; dryRun?: boolean; json?: boolean },
+    ) => {
+      try {
+        const rules = opts.rules ? await loadRulesFile(opts.rules) : undefined;
+        const result = await redactTrace({
+          tracePath,
+          outPath: opts.out,
+          rules,
+          dryRun: opts.dryRun,
+        });
+        if (opts.json) {
+          process.stdout.write(formatRedactJson(result));
+        } else {
+          const mark = result.dryRun ? kleur.yellow("dry-run") : kleur.green("✓");
+          process.stdout.write(`${mark} ${formatRedact(result)}\n`);
         }
         process.exit(0);
       } catch (err) {
