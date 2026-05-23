@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [Unreleased]
 
 ### Added
+- `agentbench bless <recording>` subcommand that promotes a recording to be
+  the new baseline — closes the `compare`-shows-red-now-what loop. Validates
+  the recording before promoting (never bless a broken file), refuses to
+  overwrite an existing baseline without `--force`, supports `--name` to
+  rename the destination and `--dry-run` to preview. Atomic write (tmp +
+  rename) so a crash mid-promotion can't replace a good baseline with a
+  half-written one. Programmatic API exported via `blessRecording`.
 - `agentbench validate <path>` subcommand that schema-checks a trace file
   (or every `.json` / `.agentbench` file in a directory) against the same
   `TraceSchema` the comparer uses. Catches malformed JSON, missing fields,

@@ -44,6 +44,9 @@ agentbench validate my-bench/baselines/refund-policy.json
 # Record a baseline (via your test harness — see the programmatic API below).
 # Then later, after a model bump:
 agentbench compare baseline.json current.json
+
+# If the drift was intentional, promote the recording to be the new baseline:
+agentbench bless recordings/refund-policy.json --bench my-bench
 ```
 
 | Command | Purpose |
@@ -52,6 +55,26 @@ agentbench compare baseline.json current.json
 | `agentbench list [dir]` | List every baseline + recording in a bench. `--json` for machine output. |
 | `agentbench validate <path>` | Schema-check a trace file (or every trace in a dir) before compare runs. `--json` for machine output. |
 | `agentbench compare <baseline> <current>` | Structurally diff two trace files. Exit `1` on any drift. |
+| `agentbench bless <recording>` | Promote a recording to be the new baseline. `--force` to overwrite, `--name` to rename, `--dry-run` to preview. |
+
+### The bless workflow
+
+`compare` shows red — but red doesn't always mean broken. Sometimes the agent improved, you renamed a tool, or the user-facing copy changed. `bless` is the deliberate act that promotes the new recording to be the contract:
+
+```bash
+# 1. Compare current run against the old baseline — drift detected.
+agentbench compare my-bench/baselines/refund.json my-bench/recordings/refund.json
+# ✗ 2 differences found …
+
+# 2. Eyeball the diff. If it's intentional, bless the recording.
+agentbench bless refund.json --bench my-bench
+
+# 3. Re-compare — green.
+agentbench compare my-bench/baselines/refund.json my-bench/recordings/refund.json
+# ✓ traces are structurally identical
+```
+
+`bless` refuses to overwrite an existing baseline without `--force` (intentional friction — silent overwrite would defeat the safeguard `compare` is meant to provide) and refuses to bless a recording that fails schema validation (a broken baseline poisons every future compare).
 
 Exits `0` if structurally identical, `1` on any difference. Drop into CI:
 
