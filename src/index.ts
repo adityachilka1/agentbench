@@ -19,3 +19,13 @@ export {
   type InitResult,
   type BenchConfig,
 } from "./init.js";
+export {
+  listBench,
+  formatList,
+  formatListJson,
+  NotABenchError,
+  BenchNotFoundError,
+  type ListEntry,
+  type ListResult,
+  type EntryType,
+} from "./list.js";

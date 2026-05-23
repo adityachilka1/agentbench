@@ -32,6 +32,12 @@ pnpm add @adityachilka/agentbench
 ## Use — CLI
 
 ```bash
+# Scaffold a bench directory:
+agentbench init my-bench
+
+# Inspect what's recorded so far:
+agentbench list my-bench
+
 # Record a baseline (via your test harness — see the programmatic API below).
 # Then later, after a model bump:
 agentbench compare baseline.json current.json

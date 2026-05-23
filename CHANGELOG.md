@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [Unreleased]
 
 ### Added
+- `agentbench list [dir]` subcommand that lists every baseline and recording
+  inside a bench, with size and last-modified metadata. Walks nested subdirs
+  under `baselines/` and `recordings/`. `--json` flag emits a stable
+  machine-readable shape. Programmatic API exported via `listBench` /
+  `formatList` / `formatListJson`.
 - `agentbench init [name]` subcommand that scaffolds a bench directory
   (`bench.json`, `baselines/`, `recordings/`, `README.md`, `.gitignore`).
   Supports `--out <dir>` and `--force` flags. Programmatic API exported
