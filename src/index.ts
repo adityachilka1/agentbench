@@ -29,3 +29,12 @@ export {
   type ListResult,
   type EntryType,
 } from "./list.js";
+export {
+  validateAgentbenchFile,
+  formatValidate,
+  formatValidateJson,
+  type ValidateResult,
+  type FileValidationResult,
+  type ValidationIssue,
+  type IssueSeverity,
+} from "./validate.js";
