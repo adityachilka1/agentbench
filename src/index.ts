@@ -38,3 +38,12 @@ export {
   type ValidationIssue,
   type IssueSeverity,
 } from "./validate.js";
+export {
+  blessRecording,
+  BaselineExistsError,
+  InvalidRecordingError,
+  NotABenchError as BlessNotABenchError,
+  RecordingNotFoundError,
+  type BlessOptions,
+  type BlessResult,
+} from "./bless.js";

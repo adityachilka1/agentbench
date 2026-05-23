@@ -5,6 +5,7 @@
  *   agentbench init [name]                    scaffold a bench directory
  *   agentbench list [dir]                     list baselines + recordings in a bench
  *   agentbench validate <path>                schema-check a trace file or dir
+ *   agentbench bless <recording>              promote a recording to a baseline
  *
  * Exits 0 on success, 1 on failure. Designed to drop straight into CI.
  */
@@ -12,6 +13,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { cac } from "cac";
 import kleur from "kleur";
+import { blessRecording } from "./bless.js";
 import { compareTraces, formatReport } from "./compare.js";
 import { initBench } from "./init.js";
 import { formatList, formatListJson, listBench } from "./list.js";
@@ -103,6 +105,41 @@ cli
       process.exit(1);
     }
   });
+
+cli
+  .command("bless <recording>", "Promote a recording to be the new baseline")
+  .option("--bench <dir>", "Path to the bench dir (default: cwd)")
+  .option("--name <baseline-name>", "Override the destination baseline filename")
+  .option("--force", "Overwrite an existing baseline")
+  .option("--dry-run", "Report what would happen without writing anything")
+  .action(
+    async (
+      recording: string,
+      opts: { bench?: string; name?: string; force?: boolean; dryRun?: boolean },
+    ) => {
+      try {
+        const benchDir = opts.bench ?? process.cwd();
+        const result = await blessRecording({
+          benchDir,
+          recordingPath: recording,
+          baselineName: opts.name,
+          force: opts.force,
+          dryRun: opts.dryRun,
+        });
+        const recRel = path.relative(process.cwd(), result.recordingPath) || result.recordingPath;
+        const baseRel = path.relative(process.cwd(), result.baselinePath) || result.baselinePath;
+        if (result.dryRun) {
+          process.stdout.write(`${kleur.yellow("dry-run")} would bless ${recRel} → ${baseRel}\n`);
+        } else {
+          process.stdout.write(`${kleur.green("✓")} blessed ${recRel} → ${baseRel}\n`);
+        }
+        process.exit(0);
+      } catch (err) {
+        process.stderr.write(`${kleur.red("error:")} ${(err as Error).message}\n`);
+        process.exit(1);
+      }
+    },
+  );
 
 cli.help();
 cli.version(VERSION);
