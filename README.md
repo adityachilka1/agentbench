@@ -38,10 +38,20 @@ agentbench init my-bench
 # Inspect what's recorded so far:
 agentbench list my-bench
 
+# Schema-check a baseline before CI relies on it:
+agentbench validate my-bench/baselines/refund-policy.json
+
 # Record a baseline (via your test harness — see the programmatic API below).
 # Then later, after a model bump:
 agentbench compare baseline.json current.json
 ```
+
+| Command | Purpose |
+|---|---|
+| `agentbench init [name]` | Scaffold a bench dir (`bench.json`, `baselines/`, `recordings/`). |
+| `agentbench list [dir]` | List every baseline + recording in a bench. `--json` for machine output. |
+| `agentbench validate <path>` | Schema-check a trace file (or every trace in a dir) before compare runs. `--json` for machine output. |
+| `agentbench compare <baseline> <current>` | Structurally diff two trace files. Exit `1` on any drift. |
 
 Exits `0` if structurally identical, `1` on any difference. Drop into CI:
 

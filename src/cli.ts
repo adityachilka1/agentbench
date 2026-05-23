@@ -4,6 +4,7 @@
  *   agentbench compare <baseline> <current>   diff two trace files
  *   agentbench init [name]                    scaffold a bench directory
  *   agentbench list [dir]                     list baselines + recordings in a bench
+ *   agentbench validate <path>                schema-check a trace file or dir
  *
  * Exits 0 on success, 1 on failure. Designed to drop straight into CI.
  */
@@ -15,6 +16,7 @@ import { compareTraces, formatReport } from "./compare.js";
 import { initBench } from "./init.js";
 import { formatList, formatListJson, listBench } from "./list.js";
 import { parseTrace } from "./trace.js";
+import { formatValidate, formatValidateJson, validateAgentbenchFile } from "./validate.js";
 
 const VERSION = "0.0.1";
 const cli = cac("agentbench");
@@ -77,6 +79,25 @@ cli
         process.stdout.write(`${formatList(result)}\n`);
       }
       process.exit(0);
+    } catch (err) {
+      process.stderr.write(`${kleur.red("error:")} ${(err as Error).message}\n`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("validate <path>", "Schema-check a trace file or directory of trace files")
+  .option("--json", "Emit machine-readable JSON instead of a human-friendly report")
+  .action(async (target: string, opts: { json?: boolean }) => {
+    try {
+      const result = await validateAgentbenchFile(target);
+      if (opts.json) {
+        process.stdout.write(formatValidateJson(result));
+      } else {
+        const mark = result.ok ? kleur.green("✓") : kleur.red("✗");
+        process.stdout.write(`${mark} ${formatValidate(result)}\n`);
+      }
+      process.exit(result.ok ? 0 : 1);
     } catch (err) {
       process.stderr.write(`${kleur.red("error:")} ${(err as Error).message}\n`);
       process.exit(1);
