@@ -7,6 +7,7 @@
  *   agentbench validate <path>                schema-check a trace file or dir
  *   agentbench bless <recording>              promote a recording to a baseline
  *   agentbench redact <trace>                 strip sensitive fields from a trace
+ *   agentbench export <trace>                 render a trace as markdown / html / json
  *
  * Exits 0 on success, 1 on failure. Designed to drop straight into CI.
  */
@@ -16,6 +17,7 @@ import { cac } from "cac";
 import kleur from "kleur";
 import { blessRecording } from "./bless.js";
 import { compareTraces, formatReport } from "./compare.js";
+import { type ExportFormat, exportTrace, formatExport } from "./export.js";
 import { initBench } from "./init.js";
 import { formatList, formatListJson, listBench } from "./list.js";
 import { formatRedact, formatRedactJson, loadRulesFile, redactTrace } from "./redact.js";
@@ -175,6 +177,41 @@ cli
       }
     },
   );
+
+cli
+  .command("export <trace>", "Render a recorded trace as markdown / html / json")
+  .option("--format <format>", "Output format: md | markdown | html | json (default: md)")
+  .option("--out <path>", "Where to write the rendered file (default: <basename>.{md|html|json})")
+  .action(async (tracePath: string, opts: { format?: string; out?: string }) => {
+    try {
+      const format = resolveExportFormat(opts.format);
+      const result = await exportTrace({
+        tracePath,
+        format,
+        outPath: opts.out,
+      });
+      process.stdout.write(`${kleur.green("✓")} ${formatExport(result)}\n`);
+      process.exit(0);
+    } catch (err) {
+      process.stderr.write(`${kleur.red("error:")} ${(err as Error).message}\n`);
+      process.exit(1);
+    }
+  });
+
+/**
+ * Normalise the user-facing --format string into the canonical
+ * `ExportFormat` union the renderer accepts. `md` is the common shorthand
+ * users will type; treat it as a synonym for `markdown`. Unknown values
+ * throw a clear error rather than silently falling through to a default.
+ */
+function resolveExportFormat(raw: string | undefined): ExportFormat {
+  if (raw === undefined || raw === "") return "markdown";
+  const lower = raw.toLowerCase();
+  if (lower === "md" || lower === "markdown") return "markdown";
+  if (lower === "html") return "html";
+  if (lower === "json") return "json";
+  throw new Error(`unknown --format value: ${raw} (expected one of: md, markdown, html, json)`);
+}
 
 cli.help();
 cli.version(VERSION);

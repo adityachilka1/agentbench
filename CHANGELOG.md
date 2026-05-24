@@ -7,6 +7,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [Unreleased]
 
 ### Added
+- `agentbench export <trace>` subcommand that pretty-prints a recorded
+  trace into a human-readable report. Three output formats: `markdown`
+  (default) — a tidy `.md` file with a frontmatter header (name, model,
+  steps count) and one section per step (user steps as blockquotes,
+  assistant steps with content prose plus a "Tool calls" subsection
+  rendering each `ToolCall` as a fenced JSON arguments block, a result
+  preview, and latency if recorded); `html` — a single self-contained
+  document with inline CSS in a tokyonight-ish palette, mobile-friendly,
+  no `<script>` tag, no external assets; and `json` — a pretty-printed
+  normalisation pass through `TraceSchema`. Long tool-call result
+  previews are truncated with a real ellipsis (`…`, U+2026), never
+  `...`. The trace is run through `validateAgentbenchFile` before
+  rendering, so `export` refuses to render an invalid file. Default
+  output path is a sibling named `<basename>.{md|html|json}`; `--out
+  <path>` overrides. No new runtime deps — Markdown is plain string
+  assembly, HTML is a hand-rolled template, JSON is
+  `JSON.stringify(..., null, 2)`. Programmatic API exported via
+  `exportTrace` / `formatExport`.
 - `agentbench redact <trace>` subcommand that strips sensitive content from a
   recorded trace before sharing it (bug report, blog post, public regression
   test). Default rules redact email addresses, OpenAI/Slack/GitHub/npm

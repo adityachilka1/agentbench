@@ -62,3 +62,11 @@ export {
   type RedactRules,
   type RedactPattern,
 } from "./redact.js";
+export {
+  exportTrace,
+  formatExport,
+  InvalidTraceError as ExportInvalidTraceError,
+  type ExportOptions,
+  type ExportResult,
+  type ExportFormat,
+} from "./export.js";

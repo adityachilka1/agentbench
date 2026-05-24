@@ -50,6 +50,11 @@ agentbench bless recordings/refund-policy.json --bench my-bench
 
 # Before sharing a trace (bug report, blog post), strip out PII / secrets:
 agentbench redact recordings/refund-policy.json --out share.json
+
+# Pretty-print a trace as Markdown / HTML / JSON for a PR comment or design review:
+agentbench export recordings/refund-policy.json                     # writes refund-policy.md
+agentbench export recordings/refund-policy.json --format html       # writes refund-policy.html
+agentbench export recordings/refund-policy.json --format json --out share.json
 ```
 
 | Command | Purpose |
@@ -60,6 +65,7 @@ agentbench redact recordings/refund-policy.json --out share.json
 | `agentbench compare <baseline> <current>` | Structurally diff two trace files. Exit `1` on any drift. |
 | `agentbench bless <recording>` | Promote a recording to be the new baseline. `--force` to overwrite, `--name` to rename, `--dry-run` to preview. |
 | `agentbench redact <trace>` | Strip emails, API keys, JWTs, and common PII fields before sharing a trace. `--out` to set the destination, `--rules` for custom patterns, `--dry-run` to preview, `--json` for machine output. Regex-based detection is best-effort — always eyeball the output. |
+| `agentbench export <trace>` | Pretty-print a recorded trace as Markdown (default), HTML (self-contained, no JS), or pretty JSON. `--format md|html|json` selects the output; `--out <path>` overrides the default `<basename>.{md|html|json}` sibling. Validates the trace before rendering — refuses to export an invalid file. |
 
 ### The bless workflow
 
