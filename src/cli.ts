@@ -9,6 +9,7 @@
  *   agentbench redact <trace>                 strip sensitive fields from a trace
  *   agentbench export <trace>                 render a trace as markdown / html / json
  *   agentbench stats [path]                   summary stats for a trace or dir
+ *   agentbench merge <traces…>                concatenate traces into one
  *
  * Exits 0 on success, 1 on failure. Designed to drop straight into CI.
  */
@@ -21,6 +22,7 @@ import { compareTraces, formatReport } from "./compare.js";
 import { type ExportFormat, exportTrace, formatExport } from "./export.js";
 import { initBench } from "./init.js";
 import { formatList, formatListJson, listBench } from "./list.js";
+import { formatMerge, formatMergeJson, mergeTraces } from "./merge.js";
 import { formatRedact, formatRedactJson, loadRulesFile, redactTrace } from "./redact.js";
 import { computeStats, formatStats, formatStatsJson } from "./stats.js";
 import { parseTrace } from "./trace.js";
@@ -225,6 +227,37 @@ cli
       process.exit(1);
     }
   });
+
+cli
+  .command("merge <...traces>", "Concatenate two or more trace files into a single trace")
+  .option("--out <path>", "Where to write the merged trace (default: ./merged.json)")
+  .option("--name <name>", "Override the output trace's `name` (default: first source's name)")
+  .option("--model <id>", "Override the output trace's `model` (default: first source's model)")
+  .option("--json", "Emit machine-readable JSON instead of a human-friendly report")
+  .action(
+    async (
+      traces: string[],
+      opts: { out?: string; name?: string; model?: string; json?: boolean },
+    ) => {
+      try {
+        const result = await mergeTraces({
+          inputPaths: traces,
+          outPath: opts.out,
+          name: opts.name,
+          model: opts.model,
+        });
+        if (opts.json) {
+          process.stdout.write(formatMergeJson(result));
+        } else {
+          process.stdout.write(`${kleur.green("✓")} ${formatMerge(result)}\n`);
+        }
+        process.exit(0);
+      } catch (err) {
+        process.stderr.write(`${kleur.red("error:")} ${(err as Error).message}\n`);
+        process.exit(1);
+      }
+    },
+  );
 
 /**
  * Parse the `--top` flag value. cac will give us a number when the value

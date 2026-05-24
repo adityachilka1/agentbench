@@ -82,3 +82,12 @@ export {
   type SkippedTrace,
   type ComputeStatsOptions,
 } from "./stats.js";
+export {
+  mergeTraces,
+  formatMerge,
+  formatMergeJson,
+  InvalidSourceError,
+  NoSourcesError,
+  type MergeOptions,
+  type MergeResult,
+} from "./merge.js";
