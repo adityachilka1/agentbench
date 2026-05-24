@@ -8,6 +8,7 @@
  *   agentbench bless <recording>              promote a recording to a baseline
  *   agentbench redact <trace>                 strip sensitive fields from a trace
  *   agentbench export <trace>                 render a trace as markdown / html / json
+ *   agentbench stats [path]                   summary stats for a trace or dir
  *
  * Exits 0 on success, 1 on failure. Designed to drop straight into CI.
  */
@@ -21,6 +22,7 @@ import { type ExportFormat, exportTrace, formatExport } from "./export.js";
 import { initBench } from "./init.js";
 import { formatList, formatListJson, listBench } from "./list.js";
 import { formatRedact, formatRedactJson, loadRulesFile, redactTrace } from "./redact.js";
+import { computeStats, formatStats, formatStatsJson } from "./stats.js";
 import { parseTrace } from "./trace.js";
 import { formatValidate, formatValidateJson, validateAgentbenchFile } from "./validate.js";
 
@@ -197,6 +199,47 @@ cli
       process.exit(1);
     }
   });
+
+cli
+  .command("stats [path]", "Print summary statistics for a trace or directory of traces")
+  .option("--json", "Emit machine-readable JSON instead of a human-friendly table")
+  .option("--top <n>", "Cap the tool breakdown to the top N tools by call count (default: 10)")
+  .action(async (target: string | undefined, opts: { json?: boolean; top?: number | string }) => {
+    try {
+      const scanned = target ?? process.cwd();
+      const top = resolveTopFlag(opts.top);
+      const report = await computeStats(scanned, { top });
+      if (opts.json) {
+        process.stdout.write(formatStatsJson(report));
+      } else {
+        process.stdout.write(`${formatStats(report)}\n`);
+        // Skipped files surface as a non-fatal warning on stderr — the
+        // exit code stays 0 since the report itself is valid.
+        for (const sk of report.skipped) {
+          process.stderr.write(`${kleur.yellow("warn:")} skipped ${sk.path}: ${sk.reason}\n`);
+        }
+      }
+      process.exit(0);
+    } catch (err) {
+      process.stderr.write(`${kleur.red("error:")} ${(err as Error).message}\n`);
+      process.exit(1);
+    }
+  });
+
+/**
+ * Parse the `--top` flag value. cac will give us a number when the value
+ * looks numeric and a string otherwise; coerce, validate, and fall back to
+ * the documented default (10). Non-positive values short-circuit to "show
+ * every tool" inside `computeStats` itself.
+ */
+function resolveTopFlag(raw: number | string | undefined): number {
+  if (raw === undefined) return 10;
+  const n = typeof raw === "number" ? raw : Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) {
+    throw new Error(`invalid --top value: ${raw} (expected a positive integer)`);
+  }
+  return Math.floor(n);
+}
 
 /**
  * Normalise the user-facing --format string into the canonical

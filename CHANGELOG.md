@@ -7,6 +7,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [Unreleased]
 
 ### Added
+- `agentbench stats [path]` subcommand that prints summary statistics for a
+  single trace file or a directory of traces (recursive). Reports total step
+  count, user vs assistant split, model breakdown (modelId → trace count),
+  per-tool call counts with p50 / p95 / max latency (nearest-rank, no
+  interpolation), average serialised `arguments` size in bytes, the single
+  largest trace in the set by raw byte size, and a flat per-trace summary.
+  Latency fields are omitted for tools that have zero recorded `latencyMs`
+  values — better than printing a misleading zero. `--json` flag emits a
+  stable machine-readable shape (CI dashboards, `jq`); `--top <N>` caps the
+  tool table to the top N by call count (default 10). Invalid traces in a
+  directory are skipped with a stderr warning rather than aborting the
+  whole run — `stats` is a reporting tool, not a gating one. Human-readable
+  tables use right-aligned tabular-style numeric columns and sentence-case
+  headings. Programmatic API exported via `computeStats` / `formatStats` /
+  `formatStatsJson` / `percentile`. No new runtime deps — table rendering is
+  hand-rolled `padEnd`/`padStart`, percentiles are a 4-line sort + index.
 - `agentbench export <trace>` subcommand that pretty-prints a recorded
   trace into a human-readable report. Three output formats: `markdown`
   (default) — a tidy `.md` file with a frontmatter header (name, model,
