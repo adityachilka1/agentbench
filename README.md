@@ -59,6 +59,10 @@ agentbench export recordings/refund-policy.json --format json --out share.json
 # Summary stats for a trace or a whole bench dir:
 agentbench stats my-bench/recordings                                 # human-readable tables
 agentbench stats my-bench --json | jq .                              # machine output for CI dashboards
+
+# Concatenate two or more traces into a single canonical baseline:
+agentbench merge a.json b.json --out merged.json
+agentbench merge step1.json step2.json step3.json --name full-suite --model claude-sonnet-4-6
 ```
 
 | Command | Purpose |
@@ -71,6 +75,7 @@ agentbench stats my-bench --json | jq .                              # machine o
 | `agentbench redact <trace>` | Strip emails, API keys, JWTs, and common PII fields before sharing a trace. `--out` to set the destination, `--rules` for custom patterns, `--dry-run` to preview, `--json` for machine output. Regex-based detection is best-effort — always eyeball the output. |
 | `agentbench export <trace>` | Pretty-print a recorded trace as Markdown (default), HTML (self-contained, no JS), or pretty JSON. `--format md|html|json` selects the output; `--out <path>` overrides the default `<basename>.{md|html|json}` sibling. Validates the trace before rendering — refuses to export an invalid file. |
 | `agentbench stats [path]` | Print summary statistics for a single trace or a directory of traces (recursive). Reports step counts, model breakdown, per-tool call counts with p50 / p95 / max latency, average serialised argument size, and the largest trace in the set. `--json` for machine output, `--top <N>` to cap the tool table (default 10). Skips invalid traces with a warning rather than aborting the run. |
+| `agentbench merge <traces…>` | Concatenate two or more trace files into a single trace, in input order. Output `name` / `model` default to the first source (overridable with `--name` / `--model`); `meta` keys merge shallowly with first-wins on conflict. Every source is schema-validated before any write — one invalid source aborts the whole merge. `--out <path>` sets the destination (default `./merged.json`), `--json` for machine output. |
 
 ### The bless workflow
 

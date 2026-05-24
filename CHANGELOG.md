@@ -7,6 +7,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [Unreleased]
 
 ### Added
+- `agentbench merge <traces…>` subcommand that concatenates two or more
+  trace files into a single trace, in input order. Useful when you've
+  captured a multi-turn agent workflow as several short recordings and want
+  one canonical baseline for regression. Every source is read and validated
+  against `TraceSchema` before any write — one invalid input aborts the
+  whole run rather than producing a partially-merged file. Output `name`
+  defaults to the first source's name (overridable with `--name`); output
+  `model` defaults to the first source's model (overridable with
+  `--model`); when sources disagree on model the first wins and a warning
+  goes to stderr. `meta` is merged shallowly with first-wins on key
+  conflict (warning on stderr). Default output path is `./merged.json`;
+  `--out <path>` overrides. `--json` for machine-readable counts. No new
+  runtime deps. Programmatic API exported via `mergeTraces` / `formatMerge`
+  / `formatMergeJson`.
 - `agentbench stats [path]` subcommand that prints summary statistics for a
   single trace file or a directory of traces (recursive). Reports total step
   count, user vs assistant split, model breakdown (modelId → trace count),
