@@ -55,6 +55,10 @@ agentbench redact recordings/refund-policy.json --out share.json
 agentbench export recordings/refund-policy.json                     # writes refund-policy.md
 agentbench export recordings/refund-policy.json --format html       # writes refund-policy.html
 agentbench export recordings/refund-policy.json --format json --out share.json
+
+# Summary stats for a trace or a whole bench dir:
+agentbench stats my-bench/recordings                                 # human-readable tables
+agentbench stats my-bench --json | jq .                              # machine output for CI dashboards
 ```
 
 | Command | Purpose |
@@ -66,6 +70,7 @@ agentbench export recordings/refund-policy.json --format json --out share.json
 | `agentbench bless <recording>` | Promote a recording to be the new baseline. `--force` to overwrite, `--name` to rename, `--dry-run` to preview. |
 | `agentbench redact <trace>` | Strip emails, API keys, JWTs, and common PII fields before sharing a trace. `--out` to set the destination, `--rules` for custom patterns, `--dry-run` to preview, `--json` for machine output. Regex-based detection is best-effort — always eyeball the output. |
 | `agentbench export <trace>` | Pretty-print a recorded trace as Markdown (default), HTML (self-contained, no JS), or pretty JSON. `--format md|html|json` selects the output; `--out <path>` overrides the default `<basename>.{md|html|json}` sibling. Validates the trace before rendering — refuses to export an invalid file. |
+| `agentbench stats [path]` | Print summary statistics for a single trace or a directory of traces (recursive). Reports step counts, model breakdown, per-tool call counts with p50 / p95 / max latency, average serialised argument size, and the largest trace in the set. `--json` for machine output, `--top <N>` to cap the tool table (default 10). Skips invalid traces with a warning rather than aborting the run. |
 
 ### The bless workflow
 

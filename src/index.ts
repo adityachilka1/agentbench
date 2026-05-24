@@ -70,3 +70,15 @@ export {
   type ExportResult,
   type ExportFormat,
 } from "./export.js";
+export {
+  computeStats,
+  formatStats,
+  formatStatsJson,
+  percentile,
+  type StatsReport,
+  type ToolStats,
+  type PerTraceSummary,
+  type LargestTrace,
+  type SkippedTrace,
+  type ComputeStatsOptions,
+} from "./stats.js";
