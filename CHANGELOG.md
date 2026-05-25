@@ -7,6 +7,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [Unreleased]
 
 ### Added
+- `agentbench replay <trace>` subcommand that streams a recorded trace's
+  steps over stdout as JSON Lines (NDJSON) — one JSON object per line,
+  ready to pipe into `jq`, a log aggregator, a test runner, or any
+  downstream tool that already speaks NDJSON. Each emitted event has
+  shape `{ index, kind, content, toolCalls? }`; `index` is the 1-based
+  step position in the source trace (preserved across `--since` / `--kind`
+  filters so the consumer always knows which step they're seeing).
+  `--since <N>` / `--until <N>` window the output as a 1-based inclusive
+  range; out-of-range windows return zero lines and exit 0 (CI scripts can
+  ask for "steps 50–60" without knowing the trace length up front).
+  `--kind user|assistant` filters by step kind. The trace is read +
+  schema-validated against `TraceSchema` before any output — `replay`
+  refuses to emit half-rendered events from a broken file the same way
+  `export` / `bless` / `merge` do. NDJSON convention: no trailing blank
+  line, exactly one `\n` per record. `log.info` chatter (if any) goes to
+  stderr so consumers can `agentbench replay x.json | jq .` cleanly. No
+  new runtime deps. Programmatic API exported via `replayTrace` (with
+  injectable `out` writable for tests).
 - `agentbench merge <traces…>` subcommand that concatenates two or more
   trace files into a single trace, in input order. Useful when you've
   captured a multi-turn agent workflow as several short recordings and want

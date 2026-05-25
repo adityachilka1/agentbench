@@ -63,6 +63,11 @@ agentbench stats my-bench --json | jq .                              # machine o
 # Concatenate two or more traces into a single canonical baseline:
 agentbench merge a.json b.json --out merged.json
 agentbench merge step1.json step2.json step3.json --name full-suite --model claude-sonnet-4-6
+
+# Stream a trace one step at a time as JSON Lines — pipe into jq, log aggregators, etc.:
+agentbench replay recordings/refund-policy.json | jq -c .
+agentbench replay recordings/refund-policy.json --since 3 --until 5
+agentbench replay recordings/refund-policy.json --kind assistant
 ```
 
 | Command | Purpose |
@@ -76,6 +81,7 @@ agentbench merge step1.json step2.json step3.json --name full-suite --model clau
 | `agentbench export <trace>` | Pretty-print a recorded trace as Markdown (default), HTML (self-contained, no JS), or pretty JSON. `--format md|html|json` selects the output; `--out <path>` overrides the default `<basename>.{md|html|json}` sibling. Validates the trace before rendering — refuses to export an invalid file. |
 | `agentbench stats [path]` | Print summary statistics for a single trace or a directory of traces (recursive). Reports step counts, model breakdown, per-tool call counts with p50 / p95 / max latency, average serialised argument size, and the largest trace in the set. `--json` for machine output, `--top <N>` to cap the tool table (default 10). Skips invalid traces with a warning rather than aborting the run. |
 | `agentbench merge <traces…>` | Concatenate two or more trace files into a single trace, in input order. Output `name` / `model` default to the first source (overridable with `--name` / `--model`); `meta` keys merge shallowly with first-wins on conflict. Every source is schema-validated before any write — one invalid source aborts the whole merge. `--out <path>` sets the destination (default `./merged.json`), `--json` for machine output. |
+| `agentbench replay <trace>` | Stream a recorded trace one step at a time on stdout as JSON Lines (NDJSON) — one object per line, ready to pipe into `jq`, a log aggregator, or any tool that already speaks NDJSON. `--since <N>` / `--until <N>` window the output (1-based inclusive); `--kind user\|assistant` filters by step kind. Out-of-range windows return zero lines and exit 0 (so CI scripts can ask for "steps 50–60" without knowing the trace length). Validates the trace before emitting — refuses to stream a broken file. All chatter goes to stderr; stdout stays pure NDJSON. |
 
 ### The bless workflow
 

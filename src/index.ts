@@ -91,3 +91,10 @@ export {
   type MergeOptions,
   type MergeResult,
 } from "./merge.js";
+export {
+  replayTrace,
+  InvalidTraceError as ReplayInvalidTraceError,
+  type ReplayOptions,
+  type ReplayResult,
+  type ReplayEvent,
+} from "./replay.js";
