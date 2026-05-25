@@ -11,6 +11,7 @@
  *   agentbench stats [path]                   summary stats for a trace or dir
  *   agentbench merge <traces…>                concatenate traces into one
  *   agentbench replay <trace>                 stream a trace's steps as NDJSON
+ *   agentbench head <trace>                   preview the first N steps of a trace
  *
  * Exits 0 on success, 1 on failure. Designed to drop straight into CI.
  */
@@ -21,6 +22,7 @@ import kleur from "kleur";
 import { blessRecording } from "./bless.js";
 import { compareTraces, formatReport } from "./compare.js";
 import { type ExportFormat, exportTrace, formatExport } from "./export.js";
+import { formatHead, formatHeadJson, headTrace } from "./head.js";
 import { initBench } from "./init.js";
 import { formatList, formatListJson, listBench } from "./list.js";
 import { formatMerge, formatMergeJson, mergeTraces } from "./merge.js";
@@ -349,6 +351,49 @@ function resolveKindFlag(raw: string | undefined): "user" | "assistant" | undefi
   const lower = raw.toLowerCase();
   if (lower === "user" || lower === "assistant") return lower;
   throw new Error(`unknown --kind value: ${raw} (expected one of: user, assistant)`);
+}
+
+cli
+  .command("head <trace>", "Preview the first N steps of a recorded trace")
+  .option("-n, --lines <n>", "How many steps to preview (default: 5)")
+  .option("--json", "Emit machine-readable JSON instead of a human-friendly report")
+  .action(
+    async (
+      tracePath: string,
+      opts: { lines?: number | string; n?: number | string; json?: boolean },
+    ) => {
+      try {
+        // `cac` parses `-n / --lines` into `opts.lines`; some users may also
+        // expect `--n` (uncommon but cheap to support). Fall through to the
+        // default inside `headTrace` when neither is provided.
+        const n = resolveLinesFlag(opts.lines ?? opts.n);
+        const result = await headTrace({ tracePath, n });
+        if (opts.json) {
+          process.stdout.write(formatHeadJson(result));
+        } else {
+          process.stdout.write(formatHead(result));
+        }
+        process.exit(0);
+      } catch (err) {
+        process.stderr.write(`${kleur.red("error:")} ${(err as Error).message}\n`);
+        process.exit(1);
+      }
+    },
+  );
+
+/**
+ * Parse the `-n / --lines` flag value into a non-negative integer step
+ * count. `undefined` means the user didn't pass the flag — let the head
+ * module apply its documented default (5). Anything non-numeric or
+ * negative throws a clear error rather than silently coercing.
+ */
+function resolveLinesFlag(raw: number | string | undefined): number | undefined {
+  if (raw === undefined) return undefined;
+  const n = typeof raw === "number" ? raw : Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) {
+    throw new Error(`invalid -n / --lines value: ${raw} (expected a non-negative integer)`);
+  }
+  return n;
 }
 
 cli.help();
