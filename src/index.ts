@@ -98,3 +98,12 @@ export {
   type ReplayResult,
   type ReplayEvent,
 } from "./replay.js";
+export {
+  headTrace,
+  formatHead,
+  formatHeadJson,
+  DEFAULT_HEAD_LINES,
+  InvalidTraceError as HeadInvalidTraceError,
+  type HeadOptions,
+  type HeadResult,
+} from "./head.js";

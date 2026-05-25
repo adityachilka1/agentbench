@@ -7,6 +7,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [Unreleased]
 
 ### Added
+- `agentbench head <trace>` subcommand that previews the first N steps of a
+  recorded trace — the Unix-`head` analogue for trace files. Default `-n 5`
+  matches `head` muscle memory; `-n 0` returns metadata only (no steps);
+  `-n` greater than the total step count returns every step (no padding,
+  no overshoot); negative values are rejected up front rather than
+  silently coerced. Default human output is a brief header (trace name,
+  model, "N of M steps") followed by one bracketed line per step:
+  `[index] kind: content[0..120]` with content collapsed to a single line
+  and truncated with a real ellipsis (`…`, U+2026); assistant steps also
+  list tool-call names inline (no arguments — use `export` / `replay` for
+  full fidelity). `--json` emits a stable machine shape (`name`, `model`,
+  `stepsShown`, `totalSteps`, sliced `steps[]`). The trace is read and
+  schema-validated against `TraceSchema` before any output — `head`
+  refuses to preview a broken file the same way `export` / `replay` /
+  `merge` do. No new runtime deps. Programmatic API exported via
+  `headTrace` / `formatHead` / `formatHeadJson` / `DEFAULT_HEAD_LINES`.
 - `agentbench replay <trace>` subcommand that streams a recorded trace's
   steps over stdout as JSON Lines (NDJSON) — one JSON object per line,
   ready to pipe into `jq`, a log aggregator, a test runner, or any

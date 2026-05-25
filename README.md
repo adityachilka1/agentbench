@@ -68,6 +68,11 @@ agentbench merge step1.json step2.json step3.json --name full-suite --model clau
 agentbench replay recordings/refund-policy.json | jq -c .
 agentbench replay recordings/refund-policy.json --since 3 --until 5
 agentbench replay recordings/refund-policy.json --kind assistant
+
+# Preview the first N steps of a trace — quick eyeball without `cat`ing the whole JSON:
+agentbench head recordings/refund-policy.json
+agentbench head recordings/refund-policy.json -n 3
+agentbench head recordings/refund-policy.json --json | jq .totalSteps
 ```
 
 | Command | Purpose |
@@ -82,6 +87,7 @@ agentbench replay recordings/refund-policy.json --kind assistant
 | `agentbench stats [path]` | Print summary statistics for a single trace or a directory of traces (recursive). Reports step counts, model breakdown, per-tool call counts with p50 / p95 / max latency, average serialised argument size, and the largest trace in the set. `--json` for machine output, `--top <N>` to cap the tool table (default 10). Skips invalid traces with a warning rather than aborting the run. |
 | `agentbench merge <traces…>` | Concatenate two or more trace files into a single trace, in input order. Output `name` / `model` default to the first source (overridable with `--name` / `--model`); `meta` keys merge shallowly with first-wins on conflict. Every source is schema-validated before any write — one invalid source aborts the whole merge. `--out <path>` sets the destination (default `./merged.json`), `--json` for machine output. |
 | `agentbench replay <trace>` | Stream a recorded trace one step at a time on stdout as JSON Lines (NDJSON) — one object per line, ready to pipe into `jq`, a log aggregator, or any tool that already speaks NDJSON. `--since <N>` / `--until <N>` window the output (1-based inclusive); `--kind user\|assistant` filters by step kind. Out-of-range windows return zero lines and exit 0 (so CI scripts can ask for "steps 50–60" without knowing the trace length). Validates the trace before emitting — refuses to stream a broken file. All chatter goes to stderr; stdout stays pure NDJSON. |
+| `agentbench head <trace>` | Preview the first N steps of a recorded trace — the Unix-`head` analogue for trace files. Default `-n 5`; `-n 0` prints just the metadata header; `n > total` shows every step. Per-step lines render `[index] kind: content[0..120]` (content collapsed to one line, truncated with a real ellipsis `…`) plus an inline list of tool-call names on assistant steps (arguments omitted — use `export` / `replay` for full fidelity). `--json` emits a stable machine shape (`name`, `model`, `stepsShown`, `totalSteps`, sliced `steps[]`). Validates the trace before reading — refuses to preview a broken file. |
 
 ### The bless workflow
 
