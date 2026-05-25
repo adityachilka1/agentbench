@@ -10,6 +10,7 @@
  *   agentbench export <trace>                 render a trace as markdown / html / json
  *   agentbench stats [path]                   summary stats for a trace or dir
  *   agentbench merge <traces…>                concatenate traces into one
+ *   agentbench replay <trace>                 stream a trace's steps as NDJSON
  *
  * Exits 0 on success, 1 on failure. Designed to drop straight into CI.
  */
@@ -24,6 +25,7 @@ import { initBench } from "./init.js";
 import { formatList, formatListJson, listBench } from "./list.js";
 import { formatMerge, formatMergeJson, mergeTraces } from "./merge.js";
 import { formatRedact, formatRedactJson, loadRulesFile, redactTrace } from "./redact.js";
+import { replayTrace } from "./replay.js";
 import { computeStats, formatStats, formatStatsJson } from "./stats.js";
 import { parseTrace } from "./trace.js";
 import { formatValidate, formatValidateJson, validateAgentbenchFile } from "./validate.js";
@@ -259,6 +261,38 @@ cli
     },
   );
 
+cli
+  .command("replay <trace>", "Stream a recorded trace's steps as JSON Lines on stdout")
+  .option("--since <n>", "1-based step index to start from (inclusive)")
+  .option("--until <n>", "1-based step index to stop at (inclusive)")
+  .option("--kind <kind>", "Filter to one kind: user | assistant")
+  .action(
+    async (
+      tracePath: string,
+      opts: { since?: number | string; until?: number | string; kind?: string },
+    ) => {
+      try {
+        const since = resolveStepFlag(opts.since, "--since");
+        const until = resolveStepFlag(opts.until, "--until");
+        const kind = resolveKindFlag(opts.kind);
+        // NDJSON goes to stdout, untouched by `log.info` chatter — the
+        // whole point of `replay` is that consumers can pipe `… | jq .`
+        // without scrubbing stderr noise out of the stream first.
+        await replayTrace({
+          tracePath,
+          since,
+          until,
+          kind,
+          out: process.stdout,
+        });
+        process.exit(0);
+      } catch (err) {
+        process.stderr.write(`${kleur.red("error:")} ${(err as Error).message}\n`);
+        process.exit(1);
+      }
+    },
+  );
+
 /**
  * Parse the `--top` flag value. cac will give us a number when the value
  * looks numeric and a string otherwise; coerce, validate, and fall back to
@@ -287,6 +321,34 @@ function resolveExportFormat(raw: string | undefined): ExportFormat {
   if (lower === "html") return "html";
   if (lower === "json") return "json";
   throw new Error(`unknown --format value: ${raw} (expected one of: md, markdown, html, json)`);
+}
+
+/**
+ * Parse a `--since` / `--until` flag value into an integer step index.
+ * Returns `undefined` when the user didn't pass the flag — the replay
+ * module uses `undefined` to mean "no bound on that side". Anything else
+ * non-numeric or non-positive throws a clear error rather than silently
+ * coercing to a meaningless default.
+ */
+function resolveStepFlag(raw: number | string | undefined, label: string): number | undefined {
+  if (raw === undefined) return undefined;
+  const n = typeof raw === "number" ? raw : Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) {
+    throw new Error(`invalid ${label} value: ${raw} (expected a positive integer)`);
+  }
+  return Math.floor(n);
+}
+
+/**
+ * Normalise the user-facing --kind string into the union the replay module
+ * accepts. Unknown values throw a clear error rather than silently falling
+ * through to "both" (which would mask a typo in CI).
+ */
+function resolveKindFlag(raw: string | undefined): "user" | "assistant" | undefined {
+  if (raw === undefined || raw === "") return undefined;
+  const lower = raw.toLowerCase();
+  if (lower === "user" || lower === "assistant") return lower;
+  throw new Error(`unknown --kind value: ${raw} (expected one of: user, assistant)`);
 }
 
 cli.help();
