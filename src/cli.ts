@@ -2,6 +2,7 @@
  * `agentbench` CLI. Commands:
  *
  *   agentbench compare <baseline> <current>   diff two trace files
+ *   agentbench compare <trace> --against <g>  diff one trace against every baseline matching a glob
  *   agentbench init [name]                    scaffold a bench directory
  *   agentbench list [dir]                     list baselines + recordings in a bench
  *   agentbench validate <path>                schema-check a trace file or dir
@@ -26,6 +27,7 @@ import { type ExportFormat, exportTrace, formatExport } from "./export.js";
 import { formatHead, formatHeadJson, headTrace } from "./head.js";
 import { initBench } from "./init.js";
 import { formatList, formatListJson, listBench } from "./list.js";
+import { formatMatchJson, formatMatchReport, matchTrace } from "./match.js";
 import { formatMerge, formatMergeJson, mergeTraces } from "./merge.js";
 import { formatRedact, formatRedactJson, loadRulesFile, redactTrace } from "./redact.js";
 import { replayTrace } from "./replay.js";
@@ -38,25 +40,75 @@ const VERSION = "0.0.1";
 const cli = cac("agentbench");
 
 cli
-  .command("compare <baseline> <current>", "Compare two trace files")
-  .action(async (baselinePath: string, currentPath: string) => {
-    try {
-      const [baseline, current] = await Promise.all([
-        readFile(baselinePath, "utf8").then(parseTrace),
-        readFile(currentPath, "utf8").then(parseTrace),
-      ]);
-      const report = compareTraces(baseline, current);
-      if (report.identical) {
-        process.stdout.write(`${kleur.green("✓")} ${formatReport(report)}\n`);
-        process.exit(0);
+  .command(
+    "compare <baseline> [current]",
+    "Compare two trace files (or one trace against a glob of baselines with --against)",
+  )
+  .option(
+    "--against <glob>",
+    "Compare <baseline> as the current trace against every baseline matching <glob>",
+  )
+  .option("--json", "Emit machine-readable JSON (only with --against)")
+  .action(
+    async (
+      baselinePath: string,
+      currentPath: string | undefined,
+      opts: { against?: string; json?: boolean },
+    ) => {
+      try {
+        if (opts.against !== undefined) {
+          // `agentbench compare <trace> --against <glob>` — multi-baseline mode.
+          // The positional <baseline> is reinterpreted as the *current* trace;
+          // every baseline is taken from the glob. `[current]`, if also passed,
+          // is rejected to avoid silently ignoring a positional the user typed.
+          if (currentPath !== undefined) {
+            throw new Error("--against is incompatible with a positional <current> argument");
+          }
+          const result = await matchTrace({
+            tracePath: baselinePath,
+            baselineGlob: opts.against,
+          });
+          if (opts.json) {
+            process.stdout.write(formatMatchJson(result));
+          } else {
+            if (result.matches.length === 0) {
+              process.stdout.write(`${kleur.yellow("·")} ${formatMatchReport(result)}\n`);
+            } else {
+              process.stdout.write(`${formatMatchReport(result)}\n`);
+            }
+          }
+          // Exit semantics:
+          //   0 — at least one baseline matches identically
+          //   1 — baselines were found but none match
+          //   2 — no baselines matched the glob (caller likely typo'd the path)
+          if (result.matches.length === 0) process.exit(2);
+          process.exit(result.identicalCount > 0 ? 0 : 1);
+        }
+
+        // Original two-positional form. `currentPath` is required here.
+        if (currentPath === undefined) {
+          throw new Error("compare requires <current> (or pass --against <glob>)");
+        }
+        const [baseline, current] = await Promise.all([
+          readFile(baselinePath, "utf8").then(parseTrace),
+          readFile(currentPath, "utf8").then(parseTrace),
+        ]);
+        const report = compareTraces(baseline, current);
+        if (report.identical) {
+          process.stdout.write(`${kleur.green("✓")} ${formatReport(report)}\n`);
+          process.exit(0);
+        }
+        process.stdout.write(`${kleur.red("✗")} ${formatReport(report)}\n`);
+        process.exit(1);
+      } catch (err) {
+        process.stderr.write(`${kleur.red("error:")} ${(err as Error).message}\n`);
+        // IO / parse errors map to exit 2 in --against mode (so callers can
+        // distinguish "no match" from "real divergence"); to exit 1 in the
+        // classic two-positional form.
+        process.exit(opts.against !== undefined ? 2 : 1);
       }
-      process.stdout.write(`${kleur.red("✗")} ${formatReport(report)}\n`);
-      process.exit(1);
-    } catch (err) {
-      process.stderr.write(`${kleur.red("error:")} ${(err as Error).message}\n`);
-      process.exit(1);
-    }
-  });
+    },
+  );
 
 cli
   .command("init [name]", "Scaffold a new bench directory")
