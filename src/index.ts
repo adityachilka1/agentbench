@@ -107,3 +107,10 @@ export {
   type HeadOptions,
   type HeadResult,
 } from "./head.js";
+export {
+  watchTrace,
+  InvalidTraceError as WatchInvalidTraceError,
+  type WatchOptions,
+  type WatchEvent,
+  type WatchHandle,
+} from "./watch.js";

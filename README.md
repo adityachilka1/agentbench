@@ -73,6 +73,11 @@ agentbench replay recordings/refund-policy.json --kind assistant
 agentbench head recordings/refund-policy.json
 agentbench head recordings/refund-policy.json -n 3
 agentbench head recordings/refund-policy.json --json | jq .totalSteps
+
+# Follow a trace being appended live — `tail -f` for `.agentbench` files:
+agentbench watch recordings/refund-policy.json                    # drain + follow
+agentbench watch recordings/refund-policy.json --from-end | jq .  # skip prefix, then follow
+agentbench watch recordings/refund-policy.json --no-follow        # drain once and exit
 ```
 
 | Command | Purpose |
@@ -88,6 +93,7 @@ agentbench head recordings/refund-policy.json --json | jq .totalSteps
 | `agentbench merge <traces…>` | Concatenate two or more trace files into a single trace, in input order. Output `name` / `model` default to the first source (overridable with `--name` / `--model`); `meta` keys merge shallowly with first-wins on conflict. Every source is schema-validated before any write — one invalid source aborts the whole merge. `--out <path>` sets the destination (default `./merged.json`), `--json` for machine output. |
 | `agentbench replay <trace>` | Stream a recorded trace one step at a time on stdout as JSON Lines (NDJSON) — one object per line, ready to pipe into `jq`, a log aggregator, or any tool that already speaks NDJSON. `--since <N>` / `--until <N>` window the output (1-based inclusive); `--kind user\|assistant` filters by step kind. Out-of-range windows return zero lines and exit 0 (so CI scripts can ask for "steps 50–60" without knowing the trace length). Validates the trace before emitting — refuses to stream a broken file. All chatter goes to stderr; stdout stays pure NDJSON. |
 | `agentbench head <trace>` | Preview the first N steps of a recorded trace — the Unix-`head` analogue for trace files. Default `-n 5`; `-n 0` prints just the metadata header; `n > total` shows every step. Per-step lines render `[index] kind: content[0..120]` (content collapsed to one line, truncated with a real ellipsis `…`) plus an inline list of tool-call names on assistant steps (arguments omitted — use `export` / `replay` for full fidelity). `--json` emits a stable machine shape (`name`, `model`, `stepsShown`, `totalSteps`, sliced `steps[]`). Validates the trace before reading — refuses to preview a broken file. |
+| `agentbench watch <trace>` | Follow a trace file being appended live — the `tail -f` analogue for `.agentbench` files. Drains the existing trace first (every step printed as one NDJSON line on stdout, same wire format as `replay`), then subscribes via `fs.watch` and emits any new steps as the file grows. `--from-end` skips the existing prefix (tail-from-now). `--no-follow` drains once and exits (drain-only mode for `agentbench watch x.json --no-follow \| jq .` pipelines that don't want to block). File truncation / rotation resets the cursor and re-emits from the new beginning. Malformed JSON during a mid-write flush is swallowed and retried on the next event. Info chatter ("watching …") goes to stderr so stdout stays pure NDJSON. Validates the initial trace before starting — refuses to follow a broken file. |
 
 ### The bless workflow
 

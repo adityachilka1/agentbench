@@ -7,6 +7,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [Unreleased]
 
 ### Added
+- `agentbench watch <trace>` subcommand that follows a trace file being
+  appended live — the `tail -f` analogue for `.agentbench` JSON traces.
+  Useful when recording a long-running agent session (CrewAI multi-agent
+  workflow, LangGraph loop, OpenAI Agents SDK run) and you want to see
+  what the agent is doing now rather than waiting until the run finishes.
+  Drains the existing trace first (every step printed as one NDJSON line
+  on stdout, identical wire format to `replay` so output is
+  pipe-compatible), then subscribes via builtin `fs.watch` and emits any
+  new steps as the file grows. `--from-end` skips the existing prefix
+  (tail-from-now); `--no-follow` drains once and exits (drain-only mode
+  for `agentbench watch x.json --no-follow | jq .` pipelines that don't
+  want to block). File truncation or rotation resets the emit cursor and
+  re-emits from the new beginning. Malformed JSON during a mid-write
+  flush is swallowed and retried on the next event — the writer may
+  legitimately be mid-flush, and tearing down the watcher for a transient
+  half-write would defeat the point. Info chatter ("watching …") goes to
+  stderr so stdout stays pure NDJSON for `jq` consumers. The initial
+  trace is read and schema-validated against `TraceSchema` before any
+  follow starts — `watch` refuses to follow a broken file the same way
+  `head` / `replay` / `export` refuse to read one. No new runtime deps.
+  Programmatic API exported via `watchTrace` (with injectable `onStep`
+  callback for tests) plus `WatchOptions` / `WatchEvent` / `WatchHandle` /
+  `WatchInvalidTraceError`.
 - `agentbench head <trace>` subcommand that previews the first N steps of a
   recorded trace — the Unix-`head` analogue for trace files. Default `-n 5`
   matches `head` muscle memory; `-n 0` returns metadata only (no steps);

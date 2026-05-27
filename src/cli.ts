@@ -12,6 +12,7 @@
  *   agentbench merge <traces…>                concatenate traces into one
  *   agentbench replay <trace>                 stream a trace's steps as NDJSON
  *   agentbench head <trace>                   preview the first N steps of a trace
+ *   agentbench watch <trace>                  follow a trace being appended live
  *
  * Exits 0 on success, 1 on failure. Designed to drop straight into CI.
  */
@@ -31,6 +32,7 @@ import { replayTrace } from "./replay.js";
 import { computeStats, formatStats, formatStatsJson } from "./stats.js";
 import { parseTrace } from "./trace.js";
 import { formatValidate, formatValidateJson, validateAgentbenchFile } from "./validate.js";
+import { type WatchEvent, watchTrace } from "./watch.js";
 
 const VERSION = "0.0.1";
 const cli = cac("agentbench");
@@ -395,6 +397,55 @@ function resolveLinesFlag(raw: number | string | undefined): number | undefined 
   }
   return n;
 }
+
+cli
+  .command("watch <trace>", "Follow a trace file being appended live (tail -f for traces)")
+  .option("--from-end", "Skip the existing content and emit only steps appended after watch starts")
+  .option("--no-follow", "Drain the current state once and exit (no live following)")
+  .action(async (tracePath: string, opts: { fromEnd?: boolean; follow?: boolean }) => {
+    try {
+      // cac maps `--no-follow` to `follow: false` and absence to `follow:
+      // true`. Mirror that for the module-level option. Same with
+      // `--from-end` → `fromStart: false`.
+      const follow = opts.follow !== false;
+      const fromStart = opts.fromEnd !== true;
+
+      // NDJSON to stdout — identical wire format to `replay` so a
+      // consumer can pipe `agentbench watch x.json | jq .` cleanly.
+      const handle = await watchTrace({
+        tracePath,
+        fromStart,
+        follow,
+        onStep: (event: WatchEvent) => {
+          process.stdout.write(`${JSON.stringify(event)}\n`);
+        },
+      });
+
+      if (!follow) {
+        // Drain-once mode: `watchTrace` has already emitted everything
+        // it has. Exit 0 immediately — the handle's `stop()` is a no-op.
+        handle.stop();
+        process.exit(0);
+      }
+
+      // Live follow mode — keep the process alive until SIGINT/SIGTERM.
+      // Info chatter ("watching …") goes to stderr so the stdout NDJSON
+      // stream stays pipe-clean for `jq`.
+      process.stderr.write(
+        `${kleur.dim(`watching ${path.resolve(tracePath)} — Ctrl-C to stop`)}\n`,
+      );
+
+      const shutdown = (): void => {
+        handle.stop();
+        process.exit(0);
+      };
+      process.on("SIGINT", shutdown);
+      process.on("SIGTERM", shutdown);
+    } catch (err) {
+      process.stderr.write(`${kleur.red("error:")} ${(err as Error).message}\n`);
+      process.exit(1);
+    }
+  });
 
 cli.help();
 cli.version(VERSION);
