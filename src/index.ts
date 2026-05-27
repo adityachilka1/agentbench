@@ -11,6 +11,14 @@ export {
 } from "./trace.js";
 export { compareTraces, formatReport, type CompareReport, type Difference } from "./compare.js";
 export {
+  matchTrace,
+  formatMatchReport,
+  formatMatchJson,
+  type MatchOptions,
+  type MatchResult,
+  type MatchEntry,
+} from "./match.js";
+export {
   initBench,
   defaultBenchConfig,
   renderBenchReadme,
