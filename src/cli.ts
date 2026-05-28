@@ -14,6 +14,7 @@
  *   agentbench replay <trace>                 stream a trace's steps as NDJSON
  *   agentbench head <trace>                   preview the first N steps of a trace
  *   agentbench watch <trace>                  follow a trace being appended live
+ *   agentbench prune --baselines <glob> <…>   gc baselines no current trace matches
  *
  * Exits 0 on success, 1 on failure. Designed to drop straight into CI.
  */
@@ -29,6 +30,7 @@ import { initBench } from "./init.js";
 import { formatList, formatListJson, listBench } from "./list.js";
 import { formatMatchJson, formatMatchReport, matchTrace } from "./match.js";
 import { formatMerge, formatMergeJson, mergeTraces } from "./merge.js";
+import { formatPruneJson, formatPruneReport, pruneStaleBaselines } from "./prune.js";
 import { formatRedact, formatRedactJson, loadRulesFile, redactTrace } from "./redact.js";
 import { replayTrace } from "./replay.js";
 import { computeStats, formatStats, formatStatsJson } from "./stats.js";
@@ -498,6 +500,88 @@ cli
       process.exit(1);
     }
   });
+
+cli
+  .command(
+    "prune [...currentTraces]",
+    "GC baselines that no current trace still matches (safe-by-default dry-run)",
+  )
+  .option("--baselines <glob>", "Glob of candidate baselines to consider pruning (required)")
+  .option("--delete", "Actually unlink files — without this, prune is a dry-run")
+  .option(
+    "--force-empty",
+    "Allow `--delete` even when no current traces were given (deletes every baseline matching the glob — destructive)",
+  )
+  .option(
+    "--min-differences <n>",
+    "A baseline is kept if some current trace is within this many structural differences (default: 0)",
+  )
+  .option("--json", "Emit machine-readable JSON instead of a human-friendly report")
+  .action(
+    async (
+      currentTraces: string[],
+      opts: {
+        baselines?: string;
+        delete?: boolean;
+        forceEmpty?: boolean;
+        minDifferences?: number | string;
+        json?: boolean;
+      },
+    ) => {
+      try {
+        if (!opts.baselines) {
+          throw new Error("prune requires --baselines <glob>");
+        }
+        const dryRun = opts.delete !== true;
+        // Empty-current foot-gun: with no current traces *every* matched
+        // baseline is prunable. Allow it in dry-run mode (it's harmless and
+        // sometimes useful for inspecting), but refuse to actually delete
+        // without an explicit `--force-empty` opt-in.
+        if (currentTraces.length === 0 && !dryRun && opts.forceEmpty !== true) {
+          throw new Error(
+            "refusing to --delete with no current traces (every baseline would be pruned). Re-run with --force-empty to override.",
+          );
+        }
+        const minDifferences = resolveMinDifferencesFlag(opts.minDifferences);
+        const result = await pruneStaleBaselines({
+          currentTraces,
+          baselineGlob: opts.baselines,
+          dryRun,
+          minDifferences,
+        });
+        if (opts.json) {
+          process.stdout.write(formatPruneJson(result));
+        } else {
+          const tag = result.dryRun ? kleur.yellow("dry-run") : kleur.green("✓");
+          process.stdout.write(`${tag} ${formatPruneReport(result)}\n`);
+        }
+        // Exit semantics:
+        //   0 — at least one prunable baseline (in dry-run: would prune; with
+        //       --delete: actually pruned)
+        //   1 — nothing to prune (every matched baseline is still in use)
+        //   2 — no baselines matched the glob (caller likely typo'd --baselines)
+        if (result.considered === 0) process.exit(2);
+        process.exit(result.prunable.length > 0 ? 0 : 1);
+      } catch (err) {
+        process.stderr.write(`${kleur.red("error:")} ${(err as Error).message}\n`);
+        process.exit(2);
+      }
+    },
+  );
+
+/**
+ * Parse the `--min-differences` flag value. cac surfaces a number when the
+ * raw token looks numeric and a string otherwise; coerce, validate, and
+ * default to `undefined` (the module-level default of 0 wins).
+ */
+function resolveMinDifferencesFlag(raw: number | string | undefined): number | undefined {
+  if (raw === undefined) return undefined;
+  const n = typeof raw === "number" ? raw : Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) {
+    throw new Error(`invalid --min-differences value: ${raw} (expected a non-negative integer)`);
+  }
+  return n;
+}
 
 cli.help();
 cli.version(VERSION);

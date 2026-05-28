@@ -122,3 +122,12 @@ export {
   type WatchEvent,
   type WatchHandle,
 } from "./watch.js";
+export {
+  pruneStaleBaselines,
+  formatPruneReport,
+  formatPruneJson,
+  type PruneOptions,
+  type PruneResult,
+  type PruneKeptEntry,
+  type PrunableEntry,
+} from "./prune.js";
