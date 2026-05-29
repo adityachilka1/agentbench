@@ -7,6 +7,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [Unreleased]
 
 ### Added
+- CLI-output snapshot tests (`src/cli-snapshots.test.ts`) pinning the
+  rendered, human-readable bytes that `agentbench` writes to stdout for
+  every command's typical invocation — same testing rigor used by
+  `biomejs/biome` and `vitest-dev/vitest`, where any text drift (stray
+  space, swapped column, renamed flag) fails CI loudly instead of
+  shipping. Covers `head` (default + `-n 2`), `stats`, `compare` (clean +
+  drifted), `replay` (full + filtered), `validate` (clean + broken),
+  `list` (populated + empty), `export --format md`, `export --format json`,
+  and `merge` — 14 inline snapshots in one file. Inline
+  `toMatchInlineSnapshot` keeps the diff and the test in one place.
+  Snapshots are deterministic: ANSI codes stripped, absolute paths under
+  the fixture tmpdir redacted to `<tmp>` (with the macOS
+  `/private/var/...` realpath dance the rest of the suite already does),
+  ISO 8601 timestamps to `<ts>`, `\r\n` collapsed to `\n`, and any `\\`
+  inside a redacted `<tmp>/...` prefix normalised to `/` so Windows CI
+  matches macOS/Linux. New test-only helper
+  `src/test-utils/render-cli.ts` (~90 LOC, no production code path)
+  exposes `renderCommand` and `normaliseCliOutput` — Strategy B from the
+  design note (import each action handler's formatter, capture its
+  output) rather than spawning the built CLI as a child process; same
+  fidelity, two orders of magnitude faster, no dependency on a fresh
+  `tsup` build. No runtime dependencies added —
+  `toMatchInlineSnapshot` is part of vitest, which was already on the
+  dev tree. No production module touched.
+
 - `agentbench watch <trace>` subcommand that follows a trace file being
   appended live — the `tail -f` analogue for `.agentbench` JSON traces.
   Useful when recording a long-running agent session (CrewAI multi-agent
